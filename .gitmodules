@@ -1,0 +1,6 @@
+[submodule "vendor/guacamole-client"]
+	path = vendor/guacamole-client
+	url = https://github.com/apache/guacamole-client.git
+[submodule "vendor/guacamole-server"]
+	path = vendor/guacamole-server
+	url = https://github.com/apache/guacamole-server.git

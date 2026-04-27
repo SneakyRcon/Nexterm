@@ -24,7 +24,7 @@ ensure_guacd_built() {
     if [ ! -f "$DIST_DIR/lib/libguac.so" ] && [ ! -f "$DIST_DIR/lib/libguac.dylib" ]; then
         echo "[engine] Building guacamole-server first..."
         cd "$GUACD_SRC"
-        CONFIGURE_OPTS="--prefix=$DIST_DIR --with-freerdp-plugin-dir=$DIST_DIR/lib/freerdp2"
+        CONFIGURE_OPTS="--prefix=$DIST_DIR --with-freerdp-plugin-dir=$DIST_DIR/lib/freerdp3"
 
         if [ ! -f Makefile ]; then
             autoreconf -fi && ./configure $CONFIGURE_OPTS

@@ -1,4 +1,4 @@
-FROM node:22-alpine AS client-builder
+FROM node:22-trixie-slim AS client-builder
 
 WORKDIR /app
 
@@ -13,13 +13,17 @@ COPY client/ .
 RUN yarn build
 
 
-FROM node:22-alpine AS schema-builder
+FROM node:22-trixie-slim AS schema-builder
 
 WORKDIR /app
 
-RUN apk add --no-cache unzip && \
-    wget -qO /tmp/flatc.zip https://github.com/google/flatbuffers/releases/download/v24.12.23/Linux.flatc.binary.g++-13.zip && \
-    unzip -o /tmp/flatc.zip -d /usr/local/bin && chmod +x /usr/local/bin/flatc && rm /tmp/flatc.zip
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates wget unzip \
+    && wget -qO /tmp/flatc.zip https://github.com/google/flatbuffers/releases/download/v24.12.23/Linux.flatc.binary.g++-13.zip \
+    && unzip -o /tmp/flatc.zip -d /usr/local/bin \
+    && chmod +x /usr/local/bin/flatc \
+    && rm /tmp/flatc.zip \
+    && rm -rf /var/lib/apt/lists/*
 RUN npm install -g esbuild
 
 COPY schema/ schema/
@@ -32,35 +36,30 @@ RUN mkdir -p server/lib/generated && \
     rm -rf server/lib/generated/nexterm
 
 
-FROM node:22-alpine AS server-builder
+FROM node:22-trixie-slim AS server-builder
 
 ARG VERSION
 
 WORKDIR /app
 
-RUN apk add --no-cache \
-    python3 py3-pip py3-setuptools \
-    make g++ gcc build-base \
-    jq
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 make g++ gcc jq \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY package.json yarn.lock ./
 RUN if [ -n "$VERSION" ]; then \
         jq --arg v "$VERSION" '.version = $v' package.json > tmp.json && mv tmp.json package.json; \
     fi
 RUN for i in 1 2 3; do yarn install --production --network-timeout 500000 && break || sleep 15; done
-
-RUN rm -rf node_modules/@img/sharp-libvips-linux-x64 \
-           node_modules/@img/sharp-linux-x64 \
-           node_modules/@img/sharp-linux-arm64 \
-           node_modules/@img/sharp-libvips-linux-arm64
+RUN rm -rf node_modules/@img/sharp-linuxmusl-* \
+           node_modules/@img/sharp-libvips-linuxmusl-* \
+    && find node_modules -name '*.musl.node' -delete
 
 COPY server/ server/
 COPY --from=schema-builder /app/server/lib/generated/ server/lib/generated/
 
 
-FROM alpine:3.21
-
-RUN apk add --no-cache nodejs
+FROM node:22-trixie-slim
 
 ENV NODE_ENV=production
 ENV LOG_LEVEL=system

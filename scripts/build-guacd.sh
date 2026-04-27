@@ -28,12 +28,12 @@ build() {
     cd "$GUACD_SRC"
     
     DIST_DIR="$GUACD_SRC/dist"
-    CONFIGURE_OPTS="--prefix=$DIST_DIR --with-freerdp-plugin-dir=$DIST_DIR/lib/freerdp2"
+    CONFIGURE_OPTS="--prefix=$DIST_DIR --with-freerdp-plugin-dir=$DIST_DIR/lib/freerdp3"
     
     if [ -f Makefile ]; then
         CURRENT_PREFIX=$(grep "^prefix = " Makefile | sed 's/prefix = //')
         CURRENT_FREERDP_DIR=$(grep "^FREERDP_PLUGIN_DIR = " src/protocols/rdp/Makefile 2>/dev/null | sed 's/FREERDP_PLUGIN_DIR = //' || echo "")
-        if [ "$CURRENT_PREFIX" != "$DIST_DIR" ] || [ "$CURRENT_FREERDP_DIR" != "$DIST_DIR/lib/freerdp2" ]; then
+        if [ "$CURRENT_PREFIX" != "$DIST_DIR" ] || [ "$CURRENT_FREERDP_DIR" != "$DIST_DIR/lib/freerdp3" ]; then
             echo "[guacd] Configuration mismatch, reconfiguring..."
             make distclean 2>/dev/null || true
             autoreconf -fi && ./configure $CONFIGURE_OPTS

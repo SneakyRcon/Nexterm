@@ -1,11 +1,12 @@
-FROM alpine:3.21 AS guac-builder
+FROM debian:trixie-slim AS guac-builder
 
-RUN apk add --no-cache \
-    build-base autoconf automake libtool pkgconf \
-    cairo-dev jpeg-dev libpng-dev ossp-uuid-dev \
-    pango-dev libvncserver-dev libwebp-dev openssl-dev freerdp-dev \
-    pulseaudio-dev libvorbis-dev libogg-dev libssh2-dev \
-    ffmpeg-dev
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       build-essential autoconf automake libtool pkg-config ca-certificates \
+       libcairo2-dev libjpeg62-turbo-dev libpng-dev uuid-dev \
+       libpango1.0-dev libvncserver-dev libwebp-dev libssl-dev freerdp3-dev \
+       libpulse-dev libvorbis-dev libogg-dev libssh2-1-dev ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
 
@@ -13,9 +14,9 @@ COPY vendor/guacamole-server/ ./vendor/guacamole-server/
 
 RUN cd vendor/guacamole-server \
     && autoreconf -fi \
-    && ./configure \
+    && CFLAGS="-Wno-error=deprecated-declarations" ./configure \
        --prefix=/src/vendor/guacamole-server/dist \
-       --with-freerdp-plugin-dir=/src/vendor/guacamole-server/dist/lib/freerdp2 \
+       --with-freerdp-plugin-dir=/src/vendor/guacamole-server/dist/lib/freerdp3 \
        --disable-guacenc \
        --disable-guaclog \
     && make -j$(nproc) \
@@ -26,14 +27,15 @@ RUN cd vendor/guacamole-server \
     && strip /src/vendor/guacamole-server/dist/sbin/* 2>/dev/null || true
 
 
-FROM alpine:3.21 AS engine-builder
+FROM debian:trixie-slim AS engine-builder
 
-RUN apk add --no-cache \
-    build-base cmake git pkgconf \
-     libssh2-dev openssl-dev curl-dev \
-    cairo-dev jpeg-dev libpng-dev ossp-uuid-dev \
-    pango-dev libwebp-dev \
-    pulseaudio-dev libvorbis-dev libogg-dev
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       build-essential cmake git pkg-config ca-certificates \
+       libssh2-1-dev libssl-dev libcurl4-openssl-dev \
+       libcairo2-dev libjpeg62-turbo-dev libpng-dev uuid-dev \
+       libpango1.0-dev libwebp-dev libpulse-dev libvorbis-dev libogg-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
 
@@ -47,20 +49,26 @@ RUN cd engine && mkdir -p build && cd build \
     && strip nexterm-engine 2>/dev/null || true
 
 
-FROM alpine:3.21
+FROM debian:trixie-slim
 
-RUN apk add --no-cache \
-    cairo jpeg libpng ossp-uuid libuuid \
-    pango libwebp openssl \
-    libpulse libvorbis libogg libssh2 \
-    libvncserver freerdp-libs libcurl
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       libcairo2 libjpeg62-turbo libpng16-16t64 libuuid1 \
+       libpango-1.0-0 libwebp7 openssl libpulse0 libvorbis0a libogg0 \
+       libssh2-1t64 libvncserver1 libfreerdp3-3 libcurl4t64 \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=guac-builder /src/vendor/guacamole-server/dist/lib/ /usr/local/lib/
 
 COPY --from=engine-builder /src/engine/build/nexterm-engine /usr/local/bin/nexterm-engine
 
-RUN cp /usr/local/lib/freerdp2/*.so /usr/lib/freerdp2/ \
-    && ldconfig /usr/local/lib 2>/dev/null || true
+RUN mkdir -p /usr/lib/freerdp3 \
+    && if [ -d /usr/lib/x86_64-linux-gnu/freerdp3 ]; then cp -a /usr/lib/x86_64-linux-gnu/freerdp3/. /usr/lib/freerdp3/; fi \
+    && if [ -d /usr/local/lib/freerdp3 ]; then cp -a /usr/local/lib/freerdp3/. /usr/lib/freerdp3/; fi \
+    && echo /usr/local/lib > /etc/ld.so.conf.d/nexterm.conf \
+    && echo /usr/local/lib/freerdp3 >> /etc/ld.so.conf.d/nexterm.conf \
+    && echo /usr/lib/freerdp3 >> /etc/ld.so.conf.d/nexterm.conf \
+    && ldconfig
 
 ENV LOG_LEVEL=info
 

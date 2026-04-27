@@ -151,3 +151,12 @@ docs/public/openapi.json
 
 # CLI
 cli/target/
+
+# Codex-CLI
+.codex
+
+# Used for building deb package
+bin
+*.deb
+todeb.sh
+jenkinsfile
